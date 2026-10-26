@@ -16,7 +16,7 @@ Install the required libraries:
 
 Create a `.env` file containing:
 
-`ALPHA_VANTAGE_API_KEY=your_key_here`
+`ALPHA_VANTAGE_API_KEY=**K3YU7BAZUG8CQT7I**`
 
 ### Usage
 Run `py test_chart.py` to test the charts with real stock data.
