@@ -8,8 +8,13 @@ from dotenv import load_dotenv
 
 from chart_generator import generate_chart
 
+URL = "https://www.alphavantage.co/query"
+
 Chart_Types = {"1": "bar", "2": "line"}
-Time_Series = {"1": "Intraday", "2": "Daily", "3": "Weekly", "4": "Monthly"}
+Time_Series = {"1": "TIME_SERIES_INTRADAY", "2": "TIME_SERIES_DAILY", "3": "TIME_SERIES_WEEKLY", "4": "TIME_SERIES_MONTHLY"}
+
+Intraday_Interval = "5min"
+
 
 def get_symbol():
     #asks for a stock symbol until a valid one is entered
@@ -19,6 +24,7 @@ def get_symbol():
             return symbol
         print("Please enter a valid stock symbol.\n")
 
+
 def get_menu_choice(prompt, valid):
     #asks for a menu option from above until a valid one is entered
     while True:
@@ -26,6 +32,7 @@ def get_menu_choice(prompt, valid):
         if choice in valid:
             return choice
         print(f"Invalid Choice. Please enter one of: {', '.join(valid)}\n")
+
 
 def get_date(prompt):
     #asks for date until one is entered in valid format
@@ -39,6 +46,7 @@ def get_date(prompt):
             pass
         print("Invalid date. Please use the YYYY-MM-DD format.\n")
 
+
 def get_end_date(start_date):
     #asks for a date after the start date
     while True:
@@ -48,11 +56,36 @@ def get_end_date(start_date):
             continue
         return end_date
 
+
 def fetch_stock_data(symbol, function, api_key):
-    return
+    #query Alpha Vantage and return json response
+    params = {"function": function, "symbol": symbol, "apikey": api_key, "outputsize": "full",}
+
+    if function == "TIME_SERIES_INTRADAY":
+        params["interval"] = Intraday_Interval
+
+    response = requests.get(URL, params=params, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+
+    #if outputsize=full cannot be used retry with compact
+    if "Information" in data and "outputsize" in data["Information"].lower():
+        params["outputsize"] = "compact"
+        response = requests.get(URL, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+    return data
+
 
 def check_api_errors(data):
-    return
+    #Display an error if Alpha Vantage returns an error
+    if "Error Message" in data:
+        raise ValueError(f"Alpha Vantage returned and error: {data['Error Message']}")
+    for key in ("Note", "Information"):
+        if key in data:
+            raise ValueError(f"Alpha Vantage says: {data[key]}")
+
 
 def main():
     load_dotenv()
@@ -81,6 +114,17 @@ def main():
     start_date = get_date("Enter the starte Date (YYYY-MM-DD): ")
     print()
     end_date = get_end_date(start_date)
+
+    try:
+        data = fetch_stock_data(symbol, function, api_key)
+        check_api_errors(data)
+        generate_chart(data, symbol, chart_type, start_date, end_date)
+    except requests.exceptions.RequestException as err:
+        print(f"\nNetwork error while conecting to Alpha Vantage: {err}")
+        return
+    except ValueError as err:
+        print(f"Error: {err}")
+        return
 
 
 
